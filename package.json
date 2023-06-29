@@ -1,0 +1,52 @@
+{
+  "name": "@shutterstock/kinesis-helpers",
+  "version": "1.0.0",
+  "description": "Helper classes for `@aws-sdk/client-kinesis`",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.json && echo 'examples/\n*.tsbuildinfo' > dist/.npmignore",
+    "build:docs": "typedoc src/index.ts",
+    "example:aws-kinesis-writer": "KINESIS_STREAM_NAME=${KINESIS_STREAM_NAME:-kinesis-helpers-test-stream} ts-node -r tsconfig-paths/register examples/aws-kinesis-writer.ts",
+    "test": "AWS_EMF_ENVIRONMENT=Local jest",
+    "lint": "eslint ./ --ext .ts --ext .tsx",
+    "lint-and-fix": "eslint ./ --ext .ts --ext .tsx --fix"
+  },
+  "files": [
+    "dist/",
+    "LICENSE.md",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shutterstock/kinesis-helpers.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-kinesis": "^3.41.0",
+    "@shutterstock/p-map-iterable": "1.0.11"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-kinesis": "^3.41.0",
+    "@shutterstock/p-map-iterable": "1.0.11"
+  },
+  "devDependencies": {
+    "@types/jest": "29.5.2",
+    "@typescript-eslint/eslint-plugin": "5.59.11",
+    "@typescript-eslint/parser": "5.59.11",
+    "aws-sdk-client-mock": "2.1.1",
+    "eslint": "8.42.0",
+    "eslint-config-prettier": "8.8.0",
+    "eslint-plugin-prettier": "4.2.1",
+    "jest": "29.5.0",
+    "prettier": "2.8.8",
+    "ts-jest": "29.1.0",
+    "ts-node": "10.9.1",
+    "tsconfig-paths": "4.2.0",
+    "typedoc": "0.24.8",
+    "typescript": "5.1.3"
+  }
+}

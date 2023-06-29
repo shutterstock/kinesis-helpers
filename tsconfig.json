@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "rootDirs": ["src", "examples"],
+    "outDir": "dist",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "strict": true,
+    "allowJs": false,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+
+    "importHelpers": true,
+    "composite": true,
+    "target": "es2016",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
+
+    // Allow referencing @shutterstock/kinesis-helpers in examples
+    "baseUrl": ".",
+    "paths": {
+      "@shutterstock/kinesis-helpers": ["src"]
+    }
+  },
+  "exclude": ["**/cdk.out", "**/dist", "**/node_modules"]
+}

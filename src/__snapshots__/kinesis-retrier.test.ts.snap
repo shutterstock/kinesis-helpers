@@ -1,0 +1,422 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`KinesisRetrier all fail initial works 1`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrier multi fail works 1`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrier send returns after retries if all records always return ProvisionedThroughputExceededException 1`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "ErrorCode": "ProvisionedThroughputExceededException",
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "ErrorCode": "ProvisionedThroughputExceededException",
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "ErrorCode": "ProvisionedThroughputExceededException",
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrier single fail at front, middle, and end works 1`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrier single fail at front, middle, and end works 2`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrier single fail at front, middle, and end works 3`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrierStatic all fail initial works 1`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrierStatic multi fail works 1`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrierStatic single fail at front, middle, and end works 1`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrierStatic single fail at front, middle, and end works 2`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
+
+exports[`KinesisRetrierStatic single fail at front, middle, and end works 3`] = `
+[
+  {
+    "Data": {
+      "data": [
+        49,
+        50,
+        51,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "123",
+  },
+  {
+    "Data": {
+      "data": [
+        52,
+        53,
+        54,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "456",
+  },
+  {
+    "Data": {
+      "data": [
+        55,
+        56,
+        57,
+      ],
+      "type": "Buffer",
+    },
+    "PartitionKey": "789",
+  },
+]
+`;
