@@ -53,21 +53,23 @@ After installing the package, you might want to look at our [API Documentation](
 ### kinesis-retrier
 
 1. Create Kinesis Data Stream using AWS Console or any other method
-   1. Default name is `kinesis-helpers-test-stream`
-   2. 1 shard is sufficient
-   3. 1 day retention is sufficient
-   4. No encryption is sufficient
-   5. On-demand throughput is sufficient
+   1. Example: `aws kinesis create-stream --stream-name kinesis-helpers-test-stream --shard-count 1`
+   2. Default name is `kinesis-helpers-test-stream`
+   3. 1 shard is sufficient
+   4. 1 day retention is sufficient
+   5. No encryption is sufficient
+   6. On-demand throughput is sufficient
 2. `npm run example:kinesis-retrier`
    1. If the stream name was changed: `KINESIS_STREAM_NAME=my-stream-name npm run example:kinesis-retrier`
 
 ### kinesis-background-writer
 
 1. Create Kinesis Data Stream using AWS Console or any other method
-   1. Default name is `kinesis-helpers-test-stream`
-   2. 1 shard is sufficient
-   3. 1 day retention is sufficient
-   4. No encryption is sufficient
-   5. On-demand throughput is sufficient
+   1. Example: `aws kinesis create-stream --stream-name kinesis-helpers-test-stream --shard-count 1`
+   2. Default name is `kinesis-helpers-test-stream`
+   3. 1 shard is sufficient
+   4. 1 day retention is sufficient
+   5. No encryption is sufficient
+   6. On-demand throughput is sufficient
 2. `npm run example:kinesis-background-writer`
    1. If the stream name was changed: `KINESIS_STREAM_NAME=my-stream-name npm run example:kinesis-background-writer`

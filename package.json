@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc --build tsconfig.json && echo 'examples/\n*.tsbuildinfo' > dist/.npmignore",
     "build:docs": "typedoc src/index.ts",
-    "example:aws-kinesis-writer": "KINESIS_STREAM_NAME=${KINESIS_STREAM_NAME:-kinesis-helpers-test-stream} ts-node -r tsconfig-paths/register examples/aws-kinesis-writer.ts",
+    "example:kinesis-background-writer": "KINESIS_STREAM_NAME=${KINESIS_STREAM_NAME:-kinesis-helpers-test-stream} ts-node -r tsconfig-paths/register examples/kinesis-background-writer.ts",
+    "example:kinesis-retrier": "KINESIS_STREAM_NAME=${KINESIS_STREAM_NAME:-kinesis-helpers-test-stream} ts-node -r tsconfig-paths/register examples/kinesis-retrier.ts",
     "test": "AWS_EMF_ENVIRONMENT=Local jest",
     "lint": "eslint ./ --ext .ts --ext .tsx",
     "lint-and-fix": "eslint ./ --ext .ts --ext .tsx --fix"

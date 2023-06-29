@@ -37,9 +37,6 @@ export class KinesisRetrier implements KinesisPutRecordsSend {
 
   /**
    * Send a PutRecordsCommand and retry any failures with exponential backoff
-   *
-   * @param command
-   * @returns
    */
   public async send(command: PutRecordsCommand): Promise<PutRecordsCommandOutput> {
     if (command.input.Records === undefined) {
@@ -130,9 +127,6 @@ export class KinesisRetrierStatic {
 
   /**
    * Send a PutRecordsCommand and retry any failures with exponential backoff
-   *
-   * @param command
-   * @returns
    */
   public static async putRecords(
     client: KinesisClient,
