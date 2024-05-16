@@ -10,6 +10,9 @@ const sleep = promisify(setTimeout);
 
 /**
  * Retries record failures within a Kinesis batch put
+ *
+ * KinesisRetrier will retry any failed records within a batch put,
+ * but will NOT retry the KinesisClient.send() call itself if that throws.
  */
 export class KinesisRetrier implements KinesisPutRecordsSend {
   private readonly _retries: number;
@@ -18,6 +21,10 @@ export class KinesisRetrier implements KinesisPutRecordsSend {
 
   /**
    * Creates a new KinesisRetrier
+   *
+   * KinesisRetrier will retry any failed records within a batch put,
+   * but will NOT retry the KinesisClient.send() call itself if that throws.
+   *
    * @param options KinesisRetrier options
    * @param options.kinesisClient - The KinesisClient instance
    * @param options.retries - Max number of retries for the batch - Default 5
