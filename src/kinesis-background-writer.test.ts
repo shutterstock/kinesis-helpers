@@ -375,4 +375,167 @@ describe('KinesisBackgroundWriter', () => {
     expect(typedErrors[3].input).toEqual(records.Records![0]);
     expect(typedErrors[3].result).toEqual(results[0]);
   }, 60000);
+
+  it('propagates errors directly from KinesisClient', async () => {
+    const backgroundWriter = new KinesisBackgroundWriter({
+      kinesisClient: kinesisClient as unknown as kinesis.KinesisClient,
+      concurrency: 2,
+    });
+    const records: kinesis.PutRecordsCommandInput = {
+      StreamName: 'some-stream',
+      Records: [
+        {
+          Data: Buffer.from('123', 'utf-8'),
+          PartitionKey: '123',
+        },
+        {
+          Data: Buffer.from('456', 'utf-8'),
+          PartitionKey: '456',
+        },
+        {
+          Data: Buffer.from('789', 'utf-8'),
+          PartitionKey: '789',
+        },
+      ],
+    };
+
+    kinesisClient.onAnyCommand().rejects({
+      message: 'Region is missing',
+    });
+
+    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+
+    // Need to wait until the backgroundWriter is idle (has finished any pending requests)
+    expect(backgroundWriter.isIdle).toBe(false);
+    await backgroundWriter.onIdle();
+    expect(backgroundWriter.isIdle).toBe(true);
+
+    // There should be 2 errors because we did 2 invokes, and they both failed
+    // The number of records (6) will not matter because they will not be seen
+    expect(backgroundWriter.errors.length).toBe(2);
+    expect(backgroundWriter.errors[0]).toBeInstanceOf(Error);
+    expect(backgroundWriter.errors[1]).toBeInstanceOf(Error);
+    expect((backgroundWriter.errors[0] as unknown as Error).message).toBe('Region is missing');
+    expect((backgroundWriter.errors[1] as unknown as Error).message).toBe('Region is missing');
+
+    // Check call count to the client without the retrier
+    expect(kinesisClient.calls().length).toBe(2);
+  });
+
+  it('propagates errors from KinesisRetrier wrapping KinesisClient', async () => {
+    const backgroundWriter = new KinesisBackgroundWriter({
+      kinesisClient: kinesisRetrier,
+      concurrency: 2,
+    });
+    const records: kinesis.PutRecordsCommandInput = {
+      StreamName: 'some-stream',
+      Records: [
+        {
+          Data: Buffer.from('123', 'utf-8'),
+          PartitionKey: '123',
+        },
+        {
+          Data: Buffer.from('456', 'utf-8'),
+          PartitionKey: '456',
+        },
+        {
+          Data: Buffer.from('789', 'utf-8'),
+          PartitionKey: '789',
+        },
+      ],
+    };
+
+    kinesisClient.onAnyCommand().rejects({
+      message: 'Region is missing',
+    });
+
+    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+
+    // Need to wait until the backgroundWriter is idle (has finished any pending requests)
+    expect(backgroundWriter.isIdle).toBe(false);
+    await backgroundWriter.onIdle();
+    expect(backgroundWriter.isIdle).toBe(true);
+
+    // There should be 2 errors because we did 2 invokes, and they both failed
+    // The number of records (6) will not matter because they will not be seen
+    expect(backgroundWriter.errors.length).toBe(2);
+    expect(backgroundWriter.errors[0]).toBeInstanceOf(Error);
+    expect(backgroundWriter.errors[1]).toBeInstanceOf(Error);
+    expect((backgroundWriter.errors[0] as unknown as Error).message).toBe('Region is missing');
+    expect((backgroundWriter.errors[1] as unknown as Error).message).toBe('Region is missing');
+
+    // Check call count to the client without the retrier
+    expect(kinesisClient.calls().length).toBe(2);
+  });
+
+  it('propagates errors from KinesisRetrier wrapping KinesisClient that happen during loop', async () => {
+    const backgroundWriter = new KinesisBackgroundWriter({
+      kinesisClient: kinesisRetrier,
+      concurrency: 2,
+    });
+    const records: kinesis.PutRecordsCommandInput = {
+      StreamName: 'some-stream',
+      Records: [
+        {
+          Data: Buffer.from('123', 'utf-8'),
+          PartitionKey: '123',
+        },
+        {
+          Data: Buffer.from('456', 'utf-8'),
+          PartitionKey: '456',
+        },
+        {
+          Data: Buffer.from('789', 'utf-8'),
+          PartitionKey: '789',
+        },
+      ],
+    };
+
+    kinesisClient
+      .onAnyCommand()
+      .callsFake(() => {
+        throw new Error('Region is missing');
+      })
+      .on(kinesis.PutRecordsCommand, records)
+      .resolvesOnce({
+        Records: records.Records as kinesis.PutRecordsResultEntry[],
+      })
+      .resolvesOnce({
+        Records: records.Records as kinesis.PutRecordsResultEntry[],
+      })
+      .rejectsOnce({
+        message: 'Region is missing',
+      })
+      .resolvesOnce({
+        Records: records.Records as kinesis.PutRecordsResultEntry[],
+      });
+
+    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await sleep(100);
+    expect(backgroundWriter.errors.length).toBe(0);
+    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await sleep(100);
+    expect(backgroundWriter.errors.length).toBe(0);
+    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await sleep(100);
+    expect(backgroundWriter.errors.length).toBe(1);
+    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await sleep(100);
+    expect(backgroundWriter.errors.length).toBe(1);
+
+    // Need to wait until the backgroundWriter is idle (has finished any pending requests)
+    expect(backgroundWriter.isIdle).toBe(false);
+    await backgroundWriter.onIdle();
+    expect(backgroundWriter.isIdle).toBe(true);
+
+    // We had 1 error
+    expect(backgroundWriter.errors.length).toBe(1);
+    expect(backgroundWriter.errors[0]).toBeInstanceOf(Error);
+    expect((backgroundWriter.errors[0] as unknown as Error).message).toBe('Region is missing');
+
+    // Check call count to the client without the retrier
+    expect(kinesisClient.calls().length).toBe(4);
+  });
 });

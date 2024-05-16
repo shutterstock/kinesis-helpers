@@ -66,24 +66,29 @@ export class KinesisBackgroundWriter {
   }
 
   private async worker(command: PutRecordsCommand): Promise<void> {
-    // If this throws (e.g. Kinesis is down), it will be caught by the IterableQueueMapperSimple
-    const results = await this._kinesisClient.send(command);
+    try {
+      const results = await this._kinesisClient.send(command);
 
-    // If there are error records, add them to the errors array
-    if (results.FailedRecordCount && results.Records !== undefined) {
-      for (let recordIndex = 0; recordIndex < results.Records.length; recordIndex++) {
-        // Only copy records that failed
-        if (results.Records[recordIndex].ErrorCode) {
-          const result = results.Records[recordIndex];
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const input = command.input.Records![recordIndex];
-          const error = new KinesisBackgroundWriterError({
-            input,
-            result,
-          });
-          this._errors.push(error);
+      // If there are error records, add them to the errors array
+      if (results.FailedRecordCount && results.Records !== undefined) {
+        for (let recordIndex = 0; recordIndex < results.Records.length; recordIndex++) {
+          // Only copy records that failed
+          if (results.Records[recordIndex].ErrorCode) {
+            const result = results.Records[recordIndex];
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const input = command.input.Records![recordIndex];
+            const error = new KinesisBackgroundWriterError({
+              input,
+              result,
+            });
+            this._errors.push(error);
+          }
         }
       }
+    } catch (error: any) {
+      // We have to catch these and expose them instead of allowing IterableQueueMapperSimple to catch them
+      // as it will hide them on an error collection that we do not expose to the caller
+      this._errors.push(error);
     }
   }
 
