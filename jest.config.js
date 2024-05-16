@@ -42,7 +42,7 @@ module.exports = {
   //   "lcov",
   //   "clover"
   // ],
-  coverageReporters: ['html', 'text'],
+  coverageReporters: ['lcov', 'html', 'text'],
 
   // An object that configures minimum threshold enforcement for coverage results
   // coverageThreshold: undefined,
@@ -130,9 +130,7 @@ module.exports = {
   // roots: [
   //   "<rootDir>"
   // ],
-  roots: [
-    '<rootDir>src/',
-  ],
+  roots: ['<rootDir>src/'],
 
   // Allows you to use a custom runner instead of Jest's default test runner
   // runner: "jest-runner",
