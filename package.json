@@ -27,7 +27,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@shutterstock/p-map-iterable": "^1.0.11"
+    "@shutterstock/p-map-iterable": "^1.1.0"
   },
   "peerDependencies": {
     "@aws-sdk/client-kinesis": "^3.41.0"
