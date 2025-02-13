@@ -2,7 +2,13 @@
 //kinesis/retrier.test.ts
 /// <reference types="jest" />
 import { promisify } from 'util';
-import * as kinesis from '@aws-sdk/client-kinesis';
+import {
+  KinesisClient,
+  PutRecordsCommandInput,
+  PutRecordsCommand,
+  PutRecordsRequestEntry,
+  PutRecordsResultEntry,
+} from '@aws-sdk/client-kinesis';
 import { KinesisRetrier } from './kinesis-retrier';
 import { KinesisBackgroundWriter, KinesisBackgroundWriterError } from './kinesis-background-writer';
 import { mockClient, AwsClientStub } from 'aws-sdk-client-mock';
@@ -11,21 +17,21 @@ import { PutRecordsCommandOutput } from '@aws-sdk/client-kinesis';
 const sleep = promisify(setTimeout);
 
 describe('KinesisBackgroundWriter', () => {
-  const kinesisClient: AwsClientStub<kinesis.KinesisClient> = mockClient(kinesis.KinesisClient);
+  const kinesisClient: AwsClientStub<KinesisClient> = mockClient(KinesisClient);
   let kinesisRetrier: KinesisRetrier;
 
   beforeEach(() => {
     jest.resetAllMocks();
     kinesisClient.reset();
     kinesisRetrier = new KinesisRetrier({
-      kinesisClient: kinesisClient as unknown as kinesis.KinesisClient,
+      kinesisClient: kinesisClient as unknown as KinesisClient,
       retryBaseDelayMS: 100,
     });
   });
 
   it('single success works - w/ retrier', async () => {
     const backgroundWriter = new KinesisBackgroundWriter({ kinesisClient: kinesisRetrier });
-    const record: kinesis.PutRecordsCommandInput = {
+    const record: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -35,11 +41,11 @@ describe('KinesisBackgroundWriter', () => {
       ],
     };
 
-    kinesisClient.on(kinesis.PutRecordsCommand, record).resolves({
-      Records: [record as kinesis.PutRecordsResultEntry],
+    kinesisClient.on(PutRecordsCommand, record).resolves({
+      Records: [record as PutRecordsResultEntry],
     });
 
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(record));
+    await backgroundWriter.send(new PutRecordsCommand(record));
 
     // Need to wait until the backgroundWriter is idle (has finished any pending requests)
     expect(backgroundWriter.isIdle).toBe(false);
@@ -53,7 +59,7 @@ describe('KinesisBackgroundWriter', () => {
 
   it('single success works - w/ retrier and FailedRecordCount = 0', async () => {
     const backgroundWriter = new KinesisBackgroundWriter({ kinesisClient: kinesisRetrier });
-    const record: kinesis.PutRecordsCommandInput = {
+    const record: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -63,12 +69,12 @@ describe('KinesisBackgroundWriter', () => {
       ],
     };
 
-    kinesisClient.on(kinesis.PutRecordsCommand, record).resolves({
-      Records: [record as kinesis.PutRecordsResultEntry],
+    kinesisClient.on(PutRecordsCommand, record).resolves({
+      Records: [record as PutRecordsResultEntry],
       FailedRecordCount: 0,
     });
 
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(record));
+    await backgroundWriter.send(new PutRecordsCommand(record));
 
     // Need to wait until the backgroundWriter is idle (has finished any pending requests)
     expect(backgroundWriter.isIdle).toBe(false);
@@ -85,7 +91,7 @@ describe('KinesisBackgroundWriter', () => {
       kinesisClient: kinesisRetrier,
       concurrency: 1,
     });
-    const record: kinesis.PutRecordsCommandInput = {
+    const record: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -95,12 +101,12 @@ describe('KinesisBackgroundWriter', () => {
       ],
     };
 
-    kinesisClient.on(kinesis.PutRecordsCommand, record).resolves({
-      Records: [record as kinesis.PutRecordsResultEntry],
+    kinesisClient.on(PutRecordsCommand, record).resolves({
+      Records: [record as PutRecordsResultEntry],
     });
 
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(record));
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(record));
+    await backgroundWriter.send(new PutRecordsCommand(record));
+    await backgroundWriter.send(new PutRecordsCommand(record));
 
     expect(kinesisClient.calls().length).toBe(2);
 
@@ -133,7 +139,7 @@ describe('KinesisBackgroundWriter', () => {
       },
       concurrency: 4,
     });
-    const record: kinesis.PutRecordsCommandInput = {
+    const record: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -145,16 +151,16 @@ describe('KinesisBackgroundWriter', () => {
 
     // First 4 added should not wait at all
     const startTime = Date.now();
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(record));
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(record));
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(record));
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(record));
+    await backgroundWriter.send(new PutRecordsCommand(record));
+    await backgroundWriter.send(new PutRecordsCommand(record));
+    await backgroundWriter.send(new PutRecordsCommand(record));
+    await backgroundWriter.send(new PutRecordsCommand(record));
     expect(Date.now() - startTime).toBeLessThan(sleepDurationMs);
 
     expect(kinesisSend.mock.calls.length).toBe(4);
 
     // Next one added should have had to wait for at least one wait period
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(record));
+    await backgroundWriter.send(new PutRecordsCommand(record));
 
     expect(kinesisSend.mock.calls.length).toBe(5);
 
@@ -179,7 +185,7 @@ describe('KinesisBackgroundWriter', () => {
       concurrency: 6,
     });
     for (let failIndex = 0; failIndex < 3; failIndex++) {
-      const records: kinesis.PutRecordsCommandInput = {
+      const records: PutRecordsCommandInput = {
         StreamName: 'some-stream',
         Records: [
           {
@@ -196,38 +202,38 @@ describe('KinesisBackgroundWriter', () => {
           },
         ],
       };
-      const recordsRetrySucceed: kinesis.PutRecordsCommandInput = {
+      const recordsRetrySucceed: PutRecordsCommandInput = {
         StreamName: 'some-stream',
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        Records: [records.Records![failIndex] as kinesis.PutRecordsRequestEntry],
+        Records: [records.Records![failIndex] as PutRecordsRequestEntry],
       };
 
-      const results: kinesis.PutRecordsResultEntry[] = [];
+      const results: PutRecordsResultEntry[] = [];
       if (records.Records !== undefined) {
         records.Records.map((value) => {
-          results.push({ ...value } as kinesis.PutRecordsResultEntry);
+          results.push({ ...value } as PutRecordsResultEntry);
         });
 
         // Set first record to fail
         results[failIndex].ErrorCode = 'ProvisionedThroughputExceededException';
       }
 
-      const resultsRetrySucceed: kinesis.PutRecordsResultEntry[] = [];
+      const resultsRetrySucceed: PutRecordsResultEntry[] = [];
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      resultsRetrySucceed.push(records.Records![failIndex] as kinesis.PutRecordsResultEntry);
+      resultsRetrySucceed.push(records.Records![failIndex] as PutRecordsResultEntry);
 
       kinesisClient
-        .on(kinesis.PutRecordsCommand, records)
+        .on(PutRecordsCommand, records)
         .resolves({
           FailedRecordCount: 1,
           Records: results,
         })
         // On the second callback we'll only get 1 record passed in... let it succeed this time
-        .on(kinesis.PutRecordsCommand, recordsRetrySucceed)
+        .on(PutRecordsCommand, recordsRetrySucceed)
         .resolves({ Records: resultsRetrySucceed });
 
       // Send the records
-      await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+      await backgroundWriter.send(new PutRecordsCommand(records));
     }
 
     // Need to wait until the backgroundWriter is idle (has finished any pending requests)
@@ -246,7 +252,7 @@ describe('KinesisBackgroundWriter', () => {
       kinesisClient: kinesisRetrier,
       concurrency: 2,
     });
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -263,24 +269,24 @@ describe('KinesisBackgroundWriter', () => {
         },
       ],
     };
-    const recordsAlwaysFails: kinesis.PutRecordsCommandInput = {
+    const recordsAlwaysFails: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: records.Records?.slice(0, 1),
     };
 
-    const resultsFirstCall: kinesis.PutRecordsResultEntry[] = [];
+    const resultsFirstCall: PutRecordsResultEntry[] = [];
     if (records.Records !== undefined) {
       records.Records.map((value) => {
-        resultsFirstCall.push({ ...value } as kinesis.PutRecordsResultEntry);
+        resultsFirstCall.push({ ...value } as PutRecordsResultEntry);
       });
 
       // Set 1 records to fail
       resultsFirstCall[0].ErrorCode = 'ProvisionedThroughputExceededException';
     }
-    const resultsAlwaysFails: kinesis.PutRecordsResultEntry[] = [];
+    const resultsAlwaysFails: PutRecordsResultEntry[] = [];
     if (recordsAlwaysFails.Records !== undefined) {
       recordsAlwaysFails.Records.map((value) => {
-        resultsAlwaysFails.push({ ...value } as kinesis.PutRecordsResultEntry);
+        resultsAlwaysFails.push({ ...value } as PutRecordsResultEntry);
       });
 
       // Set 1 records to fail
@@ -290,13 +296,13 @@ describe('KinesisBackgroundWriter', () => {
     kinesisClient
       .onAnyCommand()
       .rejects()
-      .on(kinesis.PutRecordsCommand, records)
+      .on(PutRecordsCommand, records)
       .resolvesOnce({ FailedRecordCount: 1, Records: resultsFirstCall })
       .rejects()
-      .on(kinesis.PutRecordsCommand, recordsAlwaysFails)
+      .on(PutRecordsCommand, recordsAlwaysFails)
       .resolves({ FailedRecordCount: 1, Records: resultsAlwaysFails });
 
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
 
     // Need to wait until the backgroundWriter is idle (has finished any pending requests)
     expect(backgroundWriter.isIdle).toBe(false);
@@ -317,7 +323,7 @@ describe('KinesisBackgroundWriter', () => {
       kinesisClient: kinesisRetrier,
       concurrency: 2,
     });
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -335,10 +341,10 @@ describe('KinesisBackgroundWriter', () => {
       ],
     };
 
-    const results: kinesis.PutRecordsResultEntry[] = [];
+    const results: PutRecordsResultEntry[] = [];
     if (records.Records !== undefined) {
       records.Records.map((value) => {
-        results.push({ ...value } as kinesis.PutRecordsResultEntry);
+        results.push({ ...value } as PutRecordsResultEntry);
       });
 
       // Set all records to fail
@@ -347,13 +353,13 @@ describe('KinesisBackgroundWriter', () => {
       results[2].ErrorCode = 'ProvisionedThroughputExceededException';
     }
 
-    kinesisClient.onAnyCommand().rejects().on(kinesis.PutRecordsCommand, records).resolves({
+    kinesisClient.onAnyCommand().rejects().on(PutRecordsCommand, records).resolves({
       FailedRecordCount: 3,
       Records: results,
     });
 
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
 
     // Need to wait until the backgroundWriter is idle (has finished any pending requests)
     expect(backgroundWriter.isIdle).toBe(false);
@@ -378,10 +384,10 @@ describe('KinesisBackgroundWriter', () => {
 
   it('propagates errors directly from KinesisClient', async () => {
     const backgroundWriter = new KinesisBackgroundWriter({
-      kinesisClient: kinesisClient as unknown as kinesis.KinesisClient,
+      kinesisClient: kinesisClient as unknown as KinesisClient,
       concurrency: 2,
     });
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -403,8 +409,8 @@ describe('KinesisBackgroundWriter', () => {
       message: 'Region is missing',
     });
 
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
 
     // Need to wait until the backgroundWriter is idle (has finished any pending requests)
     expect(backgroundWriter.isIdle).toBe(false);
@@ -428,7 +434,7 @@ describe('KinesisBackgroundWriter', () => {
       kinesisClient: kinesisRetrier,
       concurrency: 2,
     });
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -450,8 +456,8 @@ describe('KinesisBackgroundWriter', () => {
       message: 'Region is missing',
     });
 
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
 
     // Need to wait until the backgroundWriter is idle (has finished any pending requests)
     expect(backgroundWriter.isIdle).toBe(false);
@@ -475,7 +481,7 @@ describe('KinesisBackgroundWriter', () => {
       kinesisClient: kinesisRetrier,
       concurrency: 2,
     });
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -498,30 +504,30 @@ describe('KinesisBackgroundWriter', () => {
       .callsFake(() => {
         throw new Error('Region is missing');
       })
-      .on(kinesis.PutRecordsCommand, records)
+      .on(PutRecordsCommand, records)
       .resolvesOnce({
-        Records: records.Records as kinesis.PutRecordsResultEntry[],
+        Records: records.Records as PutRecordsResultEntry[],
       })
       .resolvesOnce({
-        Records: records.Records as kinesis.PutRecordsResultEntry[],
+        Records: records.Records as PutRecordsResultEntry[],
       })
       .rejectsOnce({
         message: 'Region is missing',
       })
       .resolvesOnce({
-        Records: records.Records as kinesis.PutRecordsResultEntry[],
+        Records: records.Records as PutRecordsResultEntry[],
       });
 
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
     await sleep(100);
     expect(backgroundWriter.errors.length).toBe(0);
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
     await sleep(100);
     expect(backgroundWriter.errors.length).toBe(0);
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
     await sleep(100);
     expect(backgroundWriter.errors.length).toBe(1);
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
     await sleep(100);
     expect(backgroundWriter.errors.length).toBe(1);
 

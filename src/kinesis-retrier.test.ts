@@ -1,25 +1,31 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 //kinesis/retrier.test.ts
 /// <reference types="jest" />
-import * as kinesis from '@aws-sdk/client-kinesis';
+import {
+  KinesisClient,
+  PutRecordsCommandInput,
+  PutRecordsCommand,
+  PutRecordsRequestEntry,
+  PutRecordsResultEntry,
+} from '@aws-sdk/client-kinesis';
 import { KinesisRetrierStatic, KinesisRetrier } from './kinesis-retrier';
 import { mockClient, AwsClientStub } from 'aws-sdk-client-mock';
 
 describe('KinesisRetrier', () => {
-  const kinesisClient: AwsClientStub<kinesis.KinesisClient> = mockClient(kinesis.KinesisClient);
+  const kinesisClient: AwsClientStub<KinesisClient> = mockClient(KinesisClient);
   let kinesisRetrier: KinesisRetrier;
 
   beforeEach(() => {
     jest.resetAllMocks();
     kinesisClient.reset();
     kinesisRetrier = new KinesisRetrier({
-      kinesisClient: new kinesis.KinesisClient({}),
+      kinesisClient: new KinesisClient({}),
       retryBaseDelayMS: 10,
     });
   });
 
   it('single success works', async () => {
-    const record: kinesis.PutRecordsCommandInput = {
+    const record: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -29,10 +35,10 @@ describe('KinesisRetrier', () => {
       ],
     };
 
-    kinesisClient.on(kinesis.PutRecordsCommand, record).resolves({
-      Records: [record as kinesis.PutRecordsResultEntry],
+    kinesisClient.on(PutRecordsCommand, record).resolves({
+      Records: [record as PutRecordsResultEntry],
     });
-    const result = await kinesisRetrier.send(new kinesis.PutRecordsCommand(record));
+    const result = await kinesisRetrier.send(new PutRecordsCommand(record));
 
     expect(result).toBeDefined();
     expect(result.FailedRecordCount).toBeUndefined();
@@ -42,7 +48,7 @@ describe('KinesisRetrier', () => {
   });
 
   it('send returns after retries if all records always return ProvisionedThroughputExceededException', async () => {
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -60,10 +66,10 @@ describe('KinesisRetrier', () => {
       ],
     };
 
-    const results: kinesis.PutRecordsResultEntry[] = [];
+    const results: PutRecordsResultEntry[] = [];
     if (records.Records !== undefined) {
       records.Records.map((value) => {
-        results.push({ ...value } as kinesis.PutRecordsResultEntry);
+        results.push({ ...value } as PutRecordsResultEntry);
       });
 
       // Set all records to fail
@@ -72,12 +78,12 @@ describe('KinesisRetrier', () => {
       results[2].ErrorCode = 'ProvisionedThroughputExceededException';
     }
 
-    kinesisClient.onAnyCommand().rejects().on(kinesis.PutRecordsCommand, records).resolves({
+    kinesisClient.onAnyCommand().rejects().on(PutRecordsCommand, records).resolves({
       FailedRecordCount: 3,
       Records: results,
     });
 
-    const result = await kinesisRetrier.send(new kinesis.PutRecordsCommand(records));
+    const result = await kinesisRetrier.send(new PutRecordsCommand(records));
     expect(result.FailedRecordCount).toBe(3);
     expect(result.Records).toMatchSnapshot();
     expect(kinesisClient.calls().length).toBe(6);
@@ -88,7 +94,7 @@ describe('KinesisRetrier', () => {
   }, 60000);
 
   it('send rethrows any underlying KinesisClient.send exception', async () => {
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -108,15 +114,15 @@ describe('KinesisRetrier', () => {
 
     kinesisClient.onAnyCommand().rejects(new Error('some AWS client error'));
 
-    await expect(async () =>
-      kinesisRetrier.send(new kinesis.PutRecordsCommand(records)),
-    ).rejects.toThrow('some AWS client error');
+    await expect(async () => kinesisRetrier.send(new PutRecordsCommand(records))).rejects.toThrow(
+      'some AWS client error',
+    );
   }, 60000);
 
   it('single fail at front, middle, and end works', async () => {
     for (let failIndex = 0; failIndex < 3; failIndex++) {
       kinesisClient.reset();
-      const records: kinesis.PutRecordsCommandInput = {
+      const records: PutRecordsCommandInput = {
         StreamName: 'some-stream',
         Records: [
           {
@@ -133,38 +139,38 @@ describe('KinesisRetrier', () => {
           },
         ],
       };
-      const recordsRetrySucceed: kinesis.PutRecordsCommandInput = {
+      const recordsRetrySucceed: PutRecordsCommandInput = {
         StreamName: 'some-stream',
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        Records: [records.Records![failIndex] as kinesis.PutRecordsRequestEntry],
+        Records: [records.Records![failIndex] as PutRecordsRequestEntry],
       };
 
-      const results: kinesis.PutRecordsResultEntry[] = [];
+      const results: PutRecordsResultEntry[] = [];
       if (records.Records !== undefined) {
         records.Records.map((value) => {
-          results.push({ ...value } as kinesis.PutRecordsResultEntry);
+          results.push({ ...value } as PutRecordsResultEntry);
         });
 
         // Set first record to fail
         results[failIndex].ErrorCode = 'ProvisionedThroughputExceededException';
       }
 
-      const resultsRetrySucceed: kinesis.PutRecordsResultEntry[] = [];
+      const resultsRetrySucceed: PutRecordsResultEntry[] = [];
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      resultsRetrySucceed.push(records.Records![failIndex] as kinesis.PutRecordsResultEntry);
+      resultsRetrySucceed.push(records.Records![failIndex] as PutRecordsResultEntry);
 
       kinesisClient
-        .on(kinesis.PutRecordsCommand, records)
+        .on(PutRecordsCommand, records)
         .resolves({
           FailedRecordCount: 1,
           Records: results,
         })
         // On the second callback we'll only get 1 record passed in... let it succeed this time
-        .on(kinesis.PutRecordsCommand, recordsRetrySucceed)
+        .on(PutRecordsCommand, recordsRetrySucceed)
         .resolves({ Records: resultsRetrySucceed });
 
       // Send the records
-      const result = await kinesisRetrier.send(new kinesis.PutRecordsCommand(records));
+      const result = await kinesisRetrier.send(new PutRecordsCommand(records));
       expect(result.FailedRecordCount).toBeUndefined();
       expect(result.Records).toMatchSnapshot();
       expect(kinesisClient.calls().length).toBe(2);
@@ -175,7 +181,7 @@ describe('KinesisRetrier', () => {
   }, 20000);
 
   it('multi fail works', async () => {
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -192,27 +198,27 @@ describe('KinesisRetrier', () => {
         },
       ],
     };
-    const recordsRetrySecond: kinesis.PutRecordsCommandInput = {
+    const recordsRetrySecond: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![0] as kinesis.PutRecordsRequestEntry,
+        records.Records![0] as PutRecordsRequestEntry,
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![1] as kinesis.PutRecordsRequestEntry,
+        records.Records![1] as PutRecordsRequestEntry,
       ],
     };
-    const recordsRetryThird: kinesis.PutRecordsCommandInput = {
+    const recordsRetryThird: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![1] as kinesis.PutRecordsRequestEntry,
+        records.Records![1] as PutRecordsRequestEntry,
       ],
     };
 
-    const results: kinesis.PutRecordsResultEntry[] = [];
+    const results: PutRecordsResultEntry[] = [];
     if (records.Records !== undefined) {
       records.Records.map((value) => {
-        results.push({ ...value } as kinesis.PutRecordsResultEntry);
+        results.push({ ...value } as PutRecordsResultEntry);
       });
 
       // Set first records to fail
@@ -220,32 +226,32 @@ describe('KinesisRetrier', () => {
       results[1].ErrorCode = 'ProvisionedThroughputExceededException';
     }
 
-    const resultsRetrySecond: kinesis.PutRecordsResultEntry[] = [];
+    const resultsRetrySecond: PutRecordsResultEntry[] = [];
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![0] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![0] as PutRecordsResultEntry) });
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![1] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![1] as PutRecordsResultEntry) });
     resultsRetrySecond[1].ErrorCode = 'ProvisionedThroughputExceededException';
 
-    const resultsRetryThird: kinesis.PutRecordsResultEntry[] = [];
+    const resultsRetryThird: PutRecordsResultEntry[] = [];
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetryThird.push(records.Records![1] as kinesis.PutRecordsResultEntry);
+    resultsRetryThird.push(records.Records![1] as PutRecordsResultEntry);
 
     kinesisClient
-      .on(kinesis.PutRecordsCommand, records)
+      .on(PutRecordsCommand, records)
       .resolves({
         FailedRecordCount: 2,
         Records: results,
       })
       // On the second callback we'll get 2 record passed in... let 1 succeed this time
-      .on(kinesis.PutRecordsCommand, recordsRetrySecond)
+      .on(PutRecordsCommand, recordsRetrySecond)
       .resolves({ FailedRecordCount: 1, Records: resultsRetrySecond })
       // On the third callback we'll only get 1 record passed in... let it succeed this time
-      .on(kinesis.PutRecordsCommand, recordsRetryThird)
+      .on(PutRecordsCommand, recordsRetryThird)
       .resolves({ Records: resultsRetryThird });
 
     // Send the records
-    const result = await kinesisRetrier.send(new kinesis.PutRecordsCommand(records));
+    const result = await kinesisRetrier.send(new PutRecordsCommand(records));
     expect(result.FailedRecordCount).toBeUndefined();
     expect(result.Records).toMatchSnapshot();
     expect(kinesisClient.calls().length).toBe(3);
@@ -259,7 +265,7 @@ describe('KinesisRetrier', () => {
   }, 20000);
 
   it('all fail initial works', async () => {
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -276,29 +282,29 @@ describe('KinesisRetrier', () => {
         },
       ],
     };
-    const recordsRetrySecond: kinesis.PutRecordsCommandInput = {
+    const recordsRetrySecond: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![0] as kinesis.PutRecordsRequestEntry,
+        records.Records![0] as PutRecordsRequestEntry,
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![1] as kinesis.PutRecordsRequestEntry,
+        records.Records![1] as PutRecordsRequestEntry,
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![2] as kinesis.PutRecordsRequestEntry,
+        records.Records![2] as PutRecordsRequestEntry,
       ],
     };
-    const recordsRetryThird: kinesis.PutRecordsCommandInput = {
+    const recordsRetryThird: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![2] as kinesis.PutRecordsRequestEntry,
+        records.Records![2] as PutRecordsRequestEntry,
       ],
     };
 
-    const results: kinesis.PutRecordsResultEntry[] = [];
+    const results: PutRecordsResultEntry[] = [];
     if (records.Records !== undefined) {
       records.Records.map((value) => {
-        results.push({ ...value } as kinesis.PutRecordsResultEntry);
+        results.push({ ...value } as PutRecordsResultEntry);
       });
 
       // Set all records to fail
@@ -307,34 +313,34 @@ describe('KinesisRetrier', () => {
       results[2].ErrorCode = 'ProvisionedThroughputExceededException';
     }
 
-    const resultsRetrySecond: kinesis.PutRecordsResultEntry[] = [];
+    const resultsRetrySecond: PutRecordsResultEntry[] = [];
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![0] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![0] as PutRecordsResultEntry) });
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![1] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![1] as PutRecordsResultEntry) });
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![2] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![2] as PutRecordsResultEntry) });
     resultsRetrySecond[2].ErrorCode = 'ProvisionedThroughputExceededException';
 
-    const resultsRetryThird: kinesis.PutRecordsResultEntry[] = [];
+    const resultsRetryThird: PutRecordsResultEntry[] = [];
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetryThird.push(records.Records![2] as kinesis.PutRecordsResultEntry);
+    resultsRetryThird.push(records.Records![2] as PutRecordsResultEntry);
 
     kinesisClient
-      .on(kinesis.PutRecordsCommand, records)
+      .on(PutRecordsCommand, records)
       .resolves({
         FailedRecordCount: 3,
         Records: results,
       })
       // On the second callback we'll get 2 record passed in... let 1 succeed this time
-      .on(kinesis.PutRecordsCommand, recordsRetrySecond)
+      .on(PutRecordsCommand, recordsRetrySecond)
       .resolves({ FailedRecordCount: 2, Records: resultsRetrySecond })
       // On the third callback we'll only get 1 record passed in... let it succeed this time
-      .on(kinesis.PutRecordsCommand, recordsRetryThird)
+      .on(PutRecordsCommand, recordsRetryThird)
       .resolves({ Records: resultsRetryThird });
 
     // Send the records
-    const result = await kinesisRetrier.send(new kinesis.PutRecordsCommand(records));
+    const result = await kinesisRetrier.send(new PutRecordsCommand(records));
     expect(result.FailedRecordCount).toBeUndefined();
     expect(result.Records).toMatchSnapshot();
     expect(kinesisClient.calls().length).toBe(2);
@@ -349,7 +355,7 @@ describe('KinesisRetrier', () => {
 });
 
 describe('KinesisRetrierStatic', () => {
-  const kinesisClient: AwsClientStub<kinesis.KinesisClient> = mockClient(kinesis.KinesisClient);
+  const kinesisClient: AwsClientStub<KinesisClient> = mockClient(KinesisClient);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -357,7 +363,7 @@ describe('KinesisRetrierStatic', () => {
   });
 
   it('single success works', async () => {
-    const record: kinesis.PutRecordsCommandInput = {
+    const record: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -367,12 +373,12 @@ describe('KinesisRetrierStatic', () => {
       ],
     };
 
-    kinesisClient.on(kinesis.PutRecordsCommand, record).resolves({
-      Records: [record as kinesis.PutRecordsResultEntry],
+    kinesisClient.on(PutRecordsCommand, record).resolves({
+      Records: [record as PutRecordsResultEntry],
     });
     const result = await KinesisRetrierStatic.putRecords(
-      kinesisClient as unknown as kinesis.KinesisClient,
-      new kinesis.PutRecordsCommand(record),
+      kinesisClient as unknown as KinesisClient,
+      new PutRecordsCommand(record),
     );
 
     expect(result).toBeDefined();
@@ -385,7 +391,7 @@ describe('KinesisRetrierStatic', () => {
   it('single fail at front, middle, and end works', async () => {
     for (let failIndex = 0; failIndex < 3; failIndex++) {
       kinesisClient.reset();
-      const records: kinesis.PutRecordsCommandInput = {
+      const records: PutRecordsCommandInput = {
         StreamName: 'some-stream',
         Records: [
           {
@@ -402,40 +408,40 @@ describe('KinesisRetrierStatic', () => {
           },
         ],
       };
-      const recordsRetrySucceed: kinesis.PutRecordsCommandInput = {
+      const recordsRetrySucceed: PutRecordsCommandInput = {
         StreamName: 'some-stream',
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        Records: [records.Records![failIndex] as kinesis.PutRecordsRequestEntry],
+        Records: [records.Records![failIndex] as PutRecordsRequestEntry],
       };
 
-      const results: kinesis.PutRecordsResultEntry[] = [];
+      const results: PutRecordsResultEntry[] = [];
       if (records.Records !== undefined) {
         records.Records.map((value) => {
-          results.push({ ...value } as kinesis.PutRecordsResultEntry);
+          results.push({ ...value } as PutRecordsResultEntry);
         });
 
         // Set first record to fail
         results[failIndex].ErrorCode = 'ProvisionedThroughputExceededException';
       }
 
-      const resultsRetrySucceed: kinesis.PutRecordsResultEntry[] = [];
+      const resultsRetrySucceed: PutRecordsResultEntry[] = [];
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      resultsRetrySucceed.push(records.Records![failIndex] as kinesis.PutRecordsResultEntry);
+      resultsRetrySucceed.push(records.Records![failIndex] as PutRecordsResultEntry);
 
       kinesisClient
-        .on(kinesis.PutRecordsCommand, records)
+        .on(PutRecordsCommand, records)
         .resolves({
           FailedRecordCount: 1,
           Records: results,
         })
         // On the second callback we'll only get 1 record passed in... let it succeed this time
-        .on(kinesis.PutRecordsCommand, recordsRetrySucceed)
+        .on(PutRecordsCommand, recordsRetrySucceed)
         .resolves({ Records: resultsRetrySucceed });
 
       // Send the records
       const result = await KinesisRetrierStatic.putRecords(
-        kinesisClient as unknown as kinesis.KinesisClient,
-        new kinesis.PutRecordsCommand(records),
+        kinesisClient as unknown as KinesisClient,
+        new PutRecordsCommand(records),
       );
       expect(result.FailedRecordCount).toBeUndefined();
       expect(result.Records).toMatchSnapshot();
@@ -447,7 +453,7 @@ describe('KinesisRetrierStatic', () => {
   }, 20000);
 
   it('multi fail works', async () => {
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -464,27 +470,27 @@ describe('KinesisRetrierStatic', () => {
         },
       ],
     };
-    const recordsRetrySecond: kinesis.PutRecordsCommandInput = {
+    const recordsRetrySecond: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![0] as kinesis.PutRecordsRequestEntry,
+        records.Records![0] as PutRecordsRequestEntry,
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![1] as kinesis.PutRecordsRequestEntry,
+        records.Records![1] as PutRecordsRequestEntry,
       ],
     };
-    const recordsRetryThird: kinesis.PutRecordsCommandInput = {
+    const recordsRetryThird: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![1] as kinesis.PutRecordsRequestEntry,
+        records.Records![1] as PutRecordsRequestEntry,
       ],
     };
 
-    const results: kinesis.PutRecordsResultEntry[] = [];
+    const results: PutRecordsResultEntry[] = [];
     if (records.Records !== undefined) {
       records.Records.map((value) => {
-        results.push({ ...value } as kinesis.PutRecordsResultEntry);
+        results.push({ ...value } as PutRecordsResultEntry);
       });
 
       // Set first records to fail
@@ -492,34 +498,34 @@ describe('KinesisRetrierStatic', () => {
       results[1].ErrorCode = 'ProvisionedThroughputExceededException';
     }
 
-    const resultsRetrySecond: kinesis.PutRecordsResultEntry[] = [];
+    const resultsRetrySecond: PutRecordsResultEntry[] = [];
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![0] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![0] as PutRecordsResultEntry) });
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![1] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![1] as PutRecordsResultEntry) });
     resultsRetrySecond[1].ErrorCode = 'ProvisionedThroughputExceededException';
 
-    const resultsRetryThird: kinesis.PutRecordsResultEntry[] = [];
+    const resultsRetryThird: PutRecordsResultEntry[] = [];
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetryThird.push(records.Records![1] as kinesis.PutRecordsResultEntry);
+    resultsRetryThird.push(records.Records![1] as PutRecordsResultEntry);
 
     kinesisClient
-      .on(kinesis.PutRecordsCommand, records)
+      .on(PutRecordsCommand, records)
       .resolves({
         FailedRecordCount: 2,
         Records: results,
       })
       // On the second callback we'll get 2 record passed in... let 1 succeed this time
-      .on(kinesis.PutRecordsCommand, recordsRetrySecond)
+      .on(PutRecordsCommand, recordsRetrySecond)
       .resolves({ FailedRecordCount: 1, Records: resultsRetrySecond })
       // On the third callback we'll only get 1 record passed in... let it succeed this time
-      .on(kinesis.PutRecordsCommand, recordsRetryThird)
+      .on(PutRecordsCommand, recordsRetryThird)
       .resolves({ Records: resultsRetryThird });
 
     // Send the records
     const result = await KinesisRetrierStatic.putRecords(
-      kinesisClient as unknown as kinesis.KinesisClient,
-      new kinesis.PutRecordsCommand(records),
+      kinesisClient as unknown as KinesisClient,
+      new PutRecordsCommand(records),
     );
     expect(result.FailedRecordCount).toBeUndefined();
     expect(result.Records).toMatchSnapshot();
@@ -534,7 +540,7 @@ describe('KinesisRetrierStatic', () => {
   }, 20000);
 
   it('all fail initial works', async () => {
-    const records: kinesis.PutRecordsCommandInput = {
+    const records: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         {
@@ -551,29 +557,29 @@ describe('KinesisRetrierStatic', () => {
         },
       ],
     };
-    const recordsRetrySecond: kinesis.PutRecordsCommandInput = {
+    const recordsRetrySecond: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![0] as kinesis.PutRecordsRequestEntry,
+        records.Records![0] as PutRecordsRequestEntry,
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![1] as kinesis.PutRecordsRequestEntry,
+        records.Records![1] as PutRecordsRequestEntry,
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![2] as kinesis.PutRecordsRequestEntry,
+        records.Records![2] as PutRecordsRequestEntry,
       ],
     };
-    const recordsRetryThird: kinesis.PutRecordsCommandInput = {
+    const recordsRetryThird: PutRecordsCommandInput = {
       StreamName: 'some-stream',
       Records: [
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        records.Records![2] as kinesis.PutRecordsRequestEntry,
+        records.Records![2] as PutRecordsRequestEntry,
       ],
     };
 
-    const results: kinesis.PutRecordsResultEntry[] = [];
+    const results: PutRecordsResultEntry[] = [];
     if (records.Records !== undefined) {
       records.Records.map((value) => {
-        results.push({ ...value } as kinesis.PutRecordsResultEntry);
+        results.push({ ...value } as PutRecordsResultEntry);
       });
 
       // Set all records to fail
@@ -582,36 +588,36 @@ describe('KinesisRetrierStatic', () => {
       results[2].ErrorCode = 'ProvisionedThroughputExceededException';
     }
 
-    const resultsRetrySecond: kinesis.PutRecordsResultEntry[] = [];
+    const resultsRetrySecond: PutRecordsResultEntry[] = [];
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![0] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![0] as PutRecordsResultEntry) });
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![1] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![1] as PutRecordsResultEntry) });
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetrySecond.push({ ...(records.Records![2] as kinesis.PutRecordsResultEntry) });
+    resultsRetrySecond.push({ ...(records.Records![2] as PutRecordsResultEntry) });
     resultsRetrySecond[2].ErrorCode = 'ProvisionedThroughputExceededException';
 
-    const resultsRetryThird: kinesis.PutRecordsResultEntry[] = [];
+    const resultsRetryThird: PutRecordsResultEntry[] = [];
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    resultsRetryThird.push(records.Records![2] as kinesis.PutRecordsResultEntry);
+    resultsRetryThird.push(records.Records![2] as PutRecordsResultEntry);
 
     kinesisClient
-      .on(kinesis.PutRecordsCommand, records)
+      .on(PutRecordsCommand, records)
       .resolves({
         FailedRecordCount: 3,
         Records: results,
       })
       // On the second callback we'll get 2 record passed in... let 1 succeed this time
-      .on(kinesis.PutRecordsCommand, recordsRetrySecond)
+      .on(PutRecordsCommand, recordsRetrySecond)
       .resolves({ FailedRecordCount: 2, Records: resultsRetrySecond })
       // On the third callback we'll only get 1 record passed in... let it succeed this time
-      .on(kinesis.PutRecordsCommand, recordsRetryThird)
+      .on(PutRecordsCommand, recordsRetryThird)
       .resolves({ Records: resultsRetryThird });
 
     // Send the records
     const result = await KinesisRetrierStatic.putRecords(
-      kinesisClient as unknown as kinesis.KinesisClient,
-      new kinesis.PutRecordsCommand(records),
+      kinesisClient as unknown as KinesisClient,
+      new PutRecordsCommand(records),
     );
     expect(result.FailedRecordCount).toBeUndefined();
     expect(result.Records).toMatchSnapshot();

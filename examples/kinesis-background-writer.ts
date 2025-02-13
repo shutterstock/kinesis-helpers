@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
-import * as kinesis from '@aws-sdk/client-kinesis';
+import { KinesisClient, PutRecordsCommand, PutRecordsCommandInput } from '@aws-sdk/client-kinesis';
 import { KinesisBackgroundWriter, KinesisRetrier } from '@shutterstock/kinesis-helpers';
 
-const kinesisClient = new kinesis.KinesisClient({});
+const kinesisClient = new KinesisClient({});
 const { KINESIS_STREAM_NAME = 'kinesis-helpers-test-stream', RECORDS_TO_WRITE = '40000' } =
   process.env;
 const RECORDS_TO_WRITE_NUM = parseInt(RECORDS_TO_WRITE, 10);
@@ -20,7 +20,7 @@ async function main() {
     concurrency: 4,
   });
 
-  const records: kinesis.PutRecordsCommandInput = {
+  const records: PutRecordsCommandInput = {
     StreamName: KINESIS_STREAM_NAME,
     Records: [],
   };
@@ -43,7 +43,7 @@ async function main() {
   for (let i = 0; i < RECORDS_TO_WRITE_NUM; i += RECORDS_PER_BATCH) {
     // Note how many records we are adding and how long it took
     console.time(`Adding ${i} to ${i + RECORDS_PER_BATCH} records took`);
-    await backgroundWriter.send(new kinesis.PutRecordsCommand(records));
+    await backgroundWriter.send(new PutRecordsCommand(records));
     console.timeEnd(`Adding ${i} to ${i + RECORDS_PER_BATCH} records took`);
   }
 
