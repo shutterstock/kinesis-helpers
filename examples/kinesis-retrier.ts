@@ -1,15 +1,15 @@
 /* eslint-disable no-console */
-import * as kinesis from '@aws-sdk/client-kinesis';
+import { KinesisClient, PutRecordsCommand, PutRecordsCommandInput } from '@aws-sdk/client-kinesis';
 import { KinesisRetrierStatic } from '@shutterstock/kinesis-helpers';
 
-const kinesisClient = new kinesis.KinesisClient({});
+const kinesisClient = new KinesisClient({});
 const { KINESIS_STREAM_NAME = 'kinesis-helpers-test-stream', RECORDS_TO_WRITE = '10000' } =
   process.env;
 const RECORDS_TO_WRITE_NUM = parseInt(RECORDS_TO_WRITE, 10);
 const RECORDS_PER_BATCH = 500;
 
 async function main() {
-  const records: kinesis.PutRecordsCommandInput = {
+  const records: PutRecordsCommandInput = {
     StreamName: KINESIS_STREAM_NAME,
     Records: [],
   };
@@ -34,7 +34,7 @@ async function main() {
     console.time(`Adding ${i} to ${i + RECORDS_PER_BATCH} records took`);
     const result = await KinesisRetrierStatic.putRecords(
       kinesisClient,
-      new kinesis.PutRecordsCommand(records),
+      new PutRecordsCommand(records),
     );
     console.timeEnd(`Adding ${i} to ${i + RECORDS_PER_BATCH} records took`);
 
